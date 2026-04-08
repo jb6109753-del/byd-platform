@@ -1,0 +1,72 @@
+﻿const express = require('express');
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const app = express();
+app.use(express.json());
+
+// 🔥 REPLACE THIS LATER WITH MONGODB ATLAS
+mongoose.connect('mongodb://127.0.0.1:27017/bydEarn');
+
+// ===== MODELS =====
+const User = mongoose.model('User', new mongoose.Schema({
+  firstName:String,
+  lastName:String,
+  email:String,
+  password:String,
+  referralCode:String,
+  referredBy:String,
+  balance:{type:Number,default:0},
+  isActivated:{type:Boolean,default:false},
+  isAdmin:{type:Boolean,default:false}
+}));
+
+const Activity = mongoose.model('Activity', new mongoose.Schema({
+  message:String,
+  date:{type:Date,default:Date.now}
+}));
+
+// ===== CREATE ADMIN =====
+app.get('/create-admin', async (req,res)=>{
+  const hash = await bcrypt.hash('BYD2026',10);
+  await User.create({
+    email:'je9964060@gmail.com',
+    password:hash,
+    isAdmin:true,
+    isActivated:true
+  });
+  res.send("Admin created");
+});
+
+// ===== REGISTER =====
+app.post('/register', async (req,res)=>{
+  const hash = await bcrypt.hash(req.body.password,10);
+  const code = Math.random().toString(36).substring(2,8);
+
+  await User.create({...req.body,password:hash,referralCode:code});
+  res.send("Registered");
+});
+
+// ===== LOGIN =====
+app.post('/login', async (req,res)=>{
+  const user = await User.findOne({email:req.body.email});
+  if(!user) return res.send("No user");
+
+  const ok = await bcrypt.compare(req.body.password,user.password);
+  if(!ok) return res.send("Wrong password");
+
+  const token = jwt.sign({email:user.email},'SECRET');
+  res.send({token});
+});
+
+// ===== FRONTEND =====
+app.get('/', (req,res)=>{
+res.send(`
+<h1>BYD Smart Earn</h1>
+<p>Send $100 BTC to:</p>
+<p><b>bc1qgeh89dl7swgdapcmhfde6nydncjw0nnrjjhuzr</b></p>
+`);
+});
+
+app.listen(5000,()=>console.log("Running"));
